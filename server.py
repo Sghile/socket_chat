@@ -1,30 +1,35 @@
-from base import SocketConnection, ChatParticipant
+import socket
+import threading
 
 
-class ChatServer(ChatParticipant):
+class Server:
+    def __init__(self, host="0.0.0.0", port=5000):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind((host, port))
+        self.sock.listen(1)
+        print(f"[SERVER] waiting {host}:{port}...")
+        self.conn, addr = self.sock.accept()
+        print(f"[SERVER] connected: {addr}")
+
+    def receive_loop(self):
+        while True:
+            try:
+                data = self.conn.recv(1024)
+                if not data:
+                    break
+                print(f"[CLIENT]: {data.decode()}")
+            except ConnectionResetError:
+                print("[SERVER] disconnected.")
+                break
+
+    def send_loop(self):
+        while True:
+            self.conn.send(input().encode())
 
     def start(self):
-        self.connection.bind_and_listen()
-        print(f"Server started {self.connection.host}:{self.connection.port}, member waiting for connection...")
-
-        conn, addr = self.connection.accept()
-        print(f"Client is connected: {addr}")
-
-        def receive():
-            while True:
-                msg = self.connection.receive(conn)
-                if not msg:
-                    break
-                print(f"\nClient: {msg}")
-
-        def send():
-            while True:
-                msg = input("Message: ")
-                self.connection.send(conn, msg)
-
-        self.start_threads(send, receive)
+        threading.Thread(target=self.receive_loop, daemon=True).start()
+        self.send_loop()
 
 
 if __name__ == "__main__":
-    server = ChatServer(SocketConnection("0.0.0.0", 5000))
-    server.start()
+    Server().start()
